@@ -12,16 +12,21 @@ router = APIRouter()
 @router.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):
 
+    #  check if email already exists
+    existing_user = db.query(User).filter(User.email == user.email).first()
+
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="User with this email already exists"
+        )
+
     # hash password
     hashed = hash_password(user.password)
 
-    # convert schema to dict
     user_data = user.dict()
-
-    # replace plain password with hashed one
     user_data["password"] = hashed
 
-    # create DB object
     new_user = User(**user_data)
 
     db.add(new_user)
@@ -29,6 +34,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
 
     return {"message": "User registered successfully"}
+
 
 @router.post("/login")
 def login(data: LoginSchema, db: Session = Depends(get_db)):
