@@ -3,7 +3,6 @@ from passlib.context import CryptContext
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-# ✅ truncate to bcrypt limit (72 bytes)
 def _truncate(password: str) -> str:
     return password.encode("utf-8")[:72].decode("utf-8", "ignore")
 

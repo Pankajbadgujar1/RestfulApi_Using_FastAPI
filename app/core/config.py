@@ -1,0 +1,3 @@
+SECRET_KEY = "super_secret_key_for_assignment_123"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 120
