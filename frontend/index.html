@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>REST API Test UI</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background:#f4f6f9;
+            padding:30px;
+        }
+
+        h1{
+            text-align:center;
+            color:#333;
+        }
+
+        .container{
+            max-width:700px;
+            margin:auto;
+        }
+
+        .box{
+            background:white;
+            border-radius:8px;
+            padding:20px;
+            margin-bottom:25px;
+            box-shadow:0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        input{
+            width:100%;
+            padding:10px;
+            margin:6px 0;
+            border:1px solid #ddd;
+            border-radius:6px;
+            font-size:14px;
+        }
+
+        button{
+            border:none;
+            padding:8px 16px;
+            border-radius:6px;
+            color:white;
+            font-weight:bold;
+            cursor:pointer;
+            margin-top:8px;
+        }
+
+        button:hover{
+            opacity:0.9;
+        }
+
+        /* Button colors */
+        .btn-primary{ background:#007bff; }
+        .btn-success{ background:#28a745; }
+        .btn-warning{ background:#ffc107; color:black; }
+        .btn-danger{ background:#dc3545; }
+
+        ul{
+            list-style:none;
+            padding:0;
+        }
+
+        li{
+            background:#f8f9fb;
+            padding:10px;
+            border-radius:6px;
+            margin-top:8px;
+            display:flex;
+            align-items:center;
+            gap:8px;
+        }
+
+        li input{
+            flex:1;
+            margin:0;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<h1>Simple Frontend for Assignment</h1>
+
+<div class="container">
+
+<!-- REGISTER -->
+<div class="box">
+    <h3>Register</h3>
+    <input id="r_name" placeholder="Username">
+    <input id="r_email" placeholder="Email">
+    <input id="r_pass" type="password" placeholder="Password">
+    <button class="btn-success" onclick="register()">Register</button>
+</div>
+
+<!-- LOGIN -->
+<div class="box">
+    <h3>Login</h3>
+    <input id="l_email" placeholder="Email">
+    <input id="l_pass" type="password" placeholder="Password">
+    <button class="btn-primary" onclick="login()">Login</button>
+</div>
+
+<!-- TASKS -->
+<div class="box">
+    <h3>Tasks</h3>
+    <input id="task_title" placeholder="Task title">
+    <input id="task_desc" placeholder="Task description">
+    <button class="btn-success" onclick="createTask()">Add Task</button>
+
+
+    <ul id="task_list"></ul>
+</div>
+
+
+<!-- ADMIN PANEL -->
+<div class="box">
+    <h3>Admin Panel</h3>
+    <button class="btn-primary" onclick="loadUsers()">Show All Users</button>
+
+    <ul id="user_list"></ul>
+</div>
+
+</div>
+
+<script>
+const API = "http://127.0.0.1:8000/api/v1";
+
+function register() {
+    fetch(API + "/auth/register", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
+            username: r_name.value,
+            email: r_email.value,
+            password: r_pass.value
+        })
+    })
+    .then(async r => {
+        const data = await r.json();
+        if(!r.ok){ alert(data.detail); }
+        else{ alert("Registered successfully"); }
+    });
+}
+
+function login() {
+    fetch(API + "/auth/login", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
+            email: l_email.value,
+            password: l_pass.value
+        })
+    })
+    .then(r=>r.json())
+    .then(d=>{
+        localStorage.setItem("token", d.access_token);
+        alert("Logged in");
+        loadTasks();
+    });
+}
+
+function createTask() {
+    fetch(API + "/tasks/", {
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json",
+            "Authorization":"Bearer "+localStorage.getItem("token")
+        },
+        body: JSON.stringify({
+            title: task_title.value,
+            description: task_desc.value
+        })
+    })
+    .then(()=> {
+        task_title.value="";
+        task_desc.value="";
+        loadTasks();
+    });
+}
+
+
+function loadTasks() {
+    fetch(API + "/tasks/", {
+        headers:{
+            "Authorization":"Bearer "+localStorage.getItem("token")
+        }
+    })
+    .then(r=>r.json())
+    .then(tasks=>{
+        let html="";
+        tasks.forEach(t=>{
+            html += `
+            <li style="flex-direction:column;align-items:stretch;">
+                <input value="${t.title}" id="task_title_${t.id}">
+                <input value="${t.description || ''}" id="task_desc_${t.id}">
+                
+                <div>
+                    <button class="btn-warning" onclick="editTask(${t.id})">Update</button>
+                    <button class="btn-danger" onclick="deleteTask(${t.id})">Delete</button>
+                </div>
+            </li>`;
+        });
+        task_list.innerHTML = html;
+    });
+}
+
+
+function deleteTask(id) {
+    fetch(API + "/tasks/"+id, {
+        method:"DELETE",
+        headers:{ "Authorization":"Bearer "+localStorage.getItem("token") }
+    })
+    .then(()=>loadTasks());
+}
+
+function updateTask(id, newTitle) {
+    fetch(API + "/tasks/" + id, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + localStorage.getItem("token")
+        },
+        body: JSON.stringify({ title: newTitle })
+    })
+    .then(()=>loadTasks());
+}
+
+function editTask(id){
+    const newTitle = document.getElementById("task_title_"+id).value;
+    const newDesc  = document.getElementById("task_desc_"+id).value;
+
+    fetch(API + "/tasks/" + id, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + localStorage.getItem("token")
+        },
+        body: JSON.stringify({
+            title: newTitle,
+            description: newDesc
+        })
+    })
+    .then(()=>loadTasks());
+}
+
+function loadUsers(){
+    fetch(API + "/admin/users", {
+        headers:{
+            "Authorization":"Bearer "+localStorage.getItem("token")
+        }
+    })
+    .then(r=>r.json())
+    .then(users=>{
+        let html="";
+        users.forEach(u=>{
+            html += `
+            <li>
+                <b>${u.username}</b> (${u.email})
+                <button class="btn-danger"
+                    onclick="deleteUser(${u.id})">
+                    Delete
+                </button>
+            </li>`;
+        });
+        user_list.innerHTML = html;
+    });
+}
+
+function deleteUser(id){
+    if(!confirm("Delete this user?")) return;
+
+    fetch(API + "/admin/users/"+id,{
+        method:"DELETE",
+        headers:{
+            "Authorization":"Bearer "+localStorage.getItem("token")
+        }
+    })
+    .then(()=>loadUsers());
+}
+
+
+</script>
+
+</body>
+</html>
